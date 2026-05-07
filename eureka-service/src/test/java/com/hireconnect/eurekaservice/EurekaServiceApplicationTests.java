@@ -1,10 +1,10 @@
-package com.hireconnect.apigateway;
+package com.hireconnect.eurekaservice;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-class ApiGatewayApplicationTests {
+class EurekaServiceApplicationTests {
 
 	@Test
 	void contextLoads() {
