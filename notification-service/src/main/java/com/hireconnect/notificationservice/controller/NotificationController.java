@@ -71,6 +71,18 @@ public class NotificationController {
         return response;
     }
 
+    @PostMapping("/send-async")
+    public ApiResponse sendAsync(@RequestBody NotificationRequest request) {
+
+        String result = service.queueNotification(request);
+
+        ApiResponse response = new ApiResponse();
+        response.setMessage(result);
+        response.setSuccess(true);
+
+        return response;
+    }
+
     @GetMapping("/user/{userId}")
     public List<NotificationLog> getByUser(@PathVariable Long userId,
             @RequestParam(defaultValue = "false") boolean unreadOnly) {

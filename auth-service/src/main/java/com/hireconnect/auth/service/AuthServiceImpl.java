@@ -1,6 +1,7 @@
 package com.hireconnect.auth.service;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -16,15 +17,16 @@ import com.hireconnect.auth.repository.AuthRepository;
 import com.hireconnect.auth.client.NotificationClient;
 import com.hireconnect.auth.client.UserClient;
 
-import java.time.LocalDateTime;
+import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Service
 public class AuthServiceImpl implements AuthService {
 
     private static final long VERIFIED_OTP_VALID_MINUTES = 10;
+    private static final String REGISTRATION_OTP_KEY_PREFIX = "auth:otp:registration:";
+    private static final String PASSWORD_RESET_OTP_KEY_PREFIX = "auth:otp:password-reset:";
 
     @Autowired
     private AuthRepository repository;
@@ -41,8 +43,8 @@ public class AuthServiceImpl implements AuthService {
     @Autowired
     private NotificationClient notificationClient;
 
-    private final Map<String, VerifiedOtp> verifiedRegistrationOtps = new ConcurrentHashMap<>();
-    private final Map<String, VerifiedOtp> verifiedPasswordResetOtps = new ConcurrentHashMap<>();
+    @Autowired
+    private StringRedisTemplate redisTemplate;
 
     // PASSWORD VALIDATION
     private void validatePassword(String password) {
@@ -112,10 +114,7 @@ public class AuthServiceImpl implements AuthService {
 
         try {
             notificationClient.verifyRegistrationOtp(new EmailOtpRequest(normalizedEmail, otp));
-            verifiedRegistrationOtps.put(
-                    normalizedEmail,
-                    new VerifiedOtp(otp.trim(), LocalDateTime.now().plusMinutes(VERIFIED_OTP_VALID_MINUTES))
-            );
+            saveVerifiedOtp(REGISTRATION_OTP_KEY_PREFIX, normalizedEmail, otp);
             return "Email verified successfully";
         } catch (Exception e) {
             throw new InvalidCredentialsException("Invalid or expired OTP");
@@ -154,10 +153,7 @@ public class AuthServiceImpl implements AuthService {
 
         try {
             notificationClient.verifyPasswordResetOtp(new EmailOtpRequest(normalizedEmail, otp));
-            verifiedPasswordResetOtps.put(
-                    normalizedEmail,
-                    new VerifiedOtp(otp.trim(), LocalDateTime.now().plusMinutes(VERIFIED_OTP_VALID_MINUTES))
-            );
+            saveVerifiedOtp(PASSWORD_RESET_OTP_KEY_PREFIX, normalizedEmail, otp);
             return "Email verified successfully";
         } catch (Exception e) {
             throw new InvalidCredentialsException("Invalid or expired OTP");
@@ -174,7 +170,7 @@ public class AuthServiceImpl implements AuthService {
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
         consumeVerifiedOtp(
-                verifiedPasswordResetOtps,
+                PASSWORD_RESET_OTP_KEY_PREFIX,
                 normalizedEmail,
                 request.getOtp(),
                 "Password reset OTP is required",
@@ -243,7 +239,7 @@ public class AuthServiceImpl implements AuthService {
 
     private void consumeVerifiedRegistrationOtp(String email, String otp) {
         consumeVerifiedOtp(
-                verifiedRegistrationOtps,
+                REGISTRATION_OTP_KEY_PREFIX,
                 email,
                 otp,
                 "Email verification OTP is required",
@@ -273,11 +269,20 @@ public class AuthServiceImpl implements AuthService {
         );
     }
 
-    private record VerifiedOtp(String otp, LocalDateTime expiresAt) {
+    private void saveVerifiedOtp(String keyPrefix, String email, String otp) {
+        redisTemplate.opsForValue().set(
+                otpKey(keyPrefix, email),
+                otp.trim(),
+                Duration.ofMinutes(VERIFIED_OTP_VALID_MINUTES)
+        );
+    }
+
+    private String otpKey(String keyPrefix, String email) {
+        return keyPrefix + email;
     }
 
     private void consumeVerifiedOtp(
-            Map<String, VerifiedOtp> verifiedOtps,
+            String keyPrefix,
             String email,
             String otp,
             String requiredMessage,
@@ -287,12 +292,11 @@ public class AuthServiceImpl implements AuthService {
             throw new InvalidCredentialsException(requiredMessage);
         }
 
-        VerifiedOtp verifiedOtp = verifiedOtps.get(email);
+        String redisKey = otpKey(keyPrefix, email);
+        String verifiedOtp = redisTemplate.opsForValue().get(redisKey);
         if (verifiedOtp != null) {
-            if (LocalDateTime.now().isAfter(verifiedOtp.expiresAt())) {
-                verifiedOtps.remove(email);
-            } else if (verifiedOtp.otp().equals(otp.trim())) {
-                verifiedOtps.remove(email);
+            if (verifiedOtp.equals(otp.trim())) {
+                redisTemplate.delete(redisKey);
                 return;
             }
         }

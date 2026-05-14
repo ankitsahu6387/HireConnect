@@ -8,6 +8,8 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,15 @@ public class NotificationService {
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @Autowired
+    private RabbitTemplate rabbitTemplate;
+
+    @Value("${app.rabbitmq.exchange}")
+    private String notificationExchange;
+
+    @Value("${app.rabbitmq.notification-routing-key}")
+    private String notificationRoutingKey;
 
     private final Map<String, OtpEntry> registrationOtps = new ConcurrentHashMap<>();
     private final Map<String, OtpEntry> passwordResetOtps = new ConcurrentHashMap<>();
@@ -122,6 +133,7 @@ public class NotificationService {
     public String sendNotification(NotificationRequest request) {
 
         try {
+            validateNotificationRequest(request);
             String email = resolveEmail(request);
             boolean shouldSendEmail = (request.getSendEmail() == null || request.getSendEmail())
                     && isEmailAllowedForUser(request.getUserId());
@@ -147,6 +159,12 @@ public class NotificationService {
         } catch (Exception e) {
             throw new NotificationException("Failed to send notification", e);
         }
+    }
+
+    public String queueNotification(NotificationRequest request) {
+        validateNotificationRequest(request);
+        rabbitTemplate.convertAndSend(notificationExchange, notificationRoutingKey, request);
+        return "Notification queued successfully";
     }
 
     public List<NotificationLog> getNotifications(Long userId, boolean unreadOnly) {
@@ -245,6 +263,21 @@ public class NotificationService {
             return String.valueOf(user.get("email"));
         } catch (Exception ignored) {
             return null;
+        }
+    }
+
+    private void validateNotificationRequest(NotificationRequest request) {
+        if (request == null) {
+            throw new NotificationException("Notification request is required");
+        }
+        if ((request.getUserId() == null) && (request.getEmail() == null || request.getEmail().isBlank())) {
+            throw new NotificationException("User ID or email is required");
+        }
+        if (request.getSubject() == null || request.getSubject().isBlank()) {
+            throw new NotificationException("Subject is required");
+        }
+        if (request.getMessage() == null || request.getMessage().isBlank()) {
+            throw new NotificationException("Message is required");
         }
     }
 
