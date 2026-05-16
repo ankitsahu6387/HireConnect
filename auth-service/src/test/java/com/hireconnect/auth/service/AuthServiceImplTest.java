@@ -3,7 +3,6 @@ package com.hireconnect.auth.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -26,8 +25,6 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.data.redis.core.StringRedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -47,12 +44,6 @@ class AuthServiceImplTest {
 
     @Mock
     private NotificationClient notificationClient;
-
-    @Mock
-    private StringRedisTemplate redisTemplate;
-
-    @Mock
-    private ValueOperations<String, String> valueOperations;
 
     @InjectMocks
     private AuthServiceImpl service;
@@ -77,32 +68,28 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void verifyRegistrationOtpStoresVerifiedOtpInRedis() {
+    void verifyRegistrationOtpStoresVerifiedOtpForRegistration() {
         when(repository.existsByEmailIgnoreCase("user@example.com")).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
 
         String result = service.verifyRegistrationOtp("user@example.com", "123456");
 
         assertThat(result).isEqualTo("Email verified successfully");
         verify(notificationClient).verifyRegistrationOtp(any(EmailOtpRequest.class));
-        verify(valueOperations).set(anyString(), anyString(), any());
     }
 
     @Test
-    void registerConsumesRedisOtpAndReturnsToken() {
+    void registerConsumesVerifiedOtpAndReturnsToken() {
         AuthRequest request = registerRequest();
         when(repository.existsByEmailIgnoreCase("user@example.com")).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("auth:otp:registration:user@example.com")).thenReturn("123456");
         when(passwordEncoder.encode("Password1")).thenReturn("encoded");
         when(repository.save(any(UserCredential.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(jwtUtil.generateToken("user@example.com", "CANDIDATE")).thenReturn("token");
 
+        service.verifyRegistrationOtp("user@example.com", "123456");
         AuthResponse response = service.register(request);
 
         assertThat(response.getToken()).isEqualTo("token");
         assertThat(response.getEmail()).isEqualTo("user@example.com");
-        verify(redisTemplate).delete("auth:otp:registration:user@example.com");
         verify(userClient).createUser(any(), any());
     }
 
@@ -117,11 +104,9 @@ class AuthServiceImplTest {
     }
 
     @Test
-    void registerFallsBackToNotificationVerificationWhenRedisMisses() {
+    void registerFallsBackToNotificationVerificationWhenOtpWasNotPreVerified() {
         AuthRequest request = registerRequest();
         when(repository.existsByEmailIgnoreCase("user@example.com")).thenReturn(false);
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("auth:otp:registration:user@example.com")).thenReturn(null);
         when(passwordEncoder.encode("Password1")).thenReturn("encoded");
         when(repository.save(any(UserCredential.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(jwtUtil.generateToken("user@example.com", "CANDIDATE")).thenReturn("token");
@@ -160,11 +145,11 @@ class AuthServiceImplTest {
         AuthRequest request = loginRequest();
         request.setOtp("123456");
         UserCredential user = new UserCredential("User", "user@example.com", "old", Role.CANDIDATE, true);
+        when(repository.existsByEmailIgnoreCase("user@example.com")).thenReturn(true);
         when(repository.findByEmailIgnoreCase("user@example.com")).thenReturn(Optional.of(user));
-        when(redisTemplate.opsForValue()).thenReturn(valueOperations);
-        when(valueOperations.get("auth:otp:password-reset:user@example.com")).thenReturn("123456");
         when(passwordEncoder.encode("Password1")).thenReturn("encoded");
 
+        service.verifyPasswordResetOtp("user@example.com", "123456");
         String result = service.resetPassword(request);
 
         assertThat(result).isEqualTo("Password reset successfully");
