@@ -1,6 +1,13 @@
 package com.hireconnect.auth.entity;
 
-import jakarta.persistence.*;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "user_credential")
@@ -11,47 +18,75 @@ public class UserCredential {
     private Long id;
 
     private String name;
+
+    @Column(nullable = false, unique = true)
     private String email;
+
+    @Column(nullable = false)
     private String password;
-    private boolean emailVerified;
 
     @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
     private Role role;
 
-    public UserCredential() {}
+    private boolean enabled;
 
-    public UserCredential(String name, String email, String password, Role role) {
+    public UserCredential() {
+    }
+
+    public UserCredential(String name, String email, String password, Role role, boolean enabled) {
         this.name = name;
         this.email = email;
         this.password = password;
         this.role = role;
-        this.emailVerified = false;
+        this.enabled = enabled;
     }
 
-    public UserCredential(String name, String email, String password, Role role, boolean emailVerified) {
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public String getName() {
+        return name;
+    }
+
+    public void setName(String name) {
         this.name = name;
-        this.email = email;
-        this.password = password;
-        this.role = role;
-        this.emailVerified = emailVerified;
     }
 
-    // GETTERS & SETTERS
+    public String getEmail() {
+        return email;
+    }
 
-    public Long getId() { return id; }
+    public void setEmail(String email) {
+        this.email = email;
+    }
 
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
+    public String getPassword() {
+        return password;
+    }
 
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
+    public void setPassword(String password) {
+        this.password = password;
+    }
 
-    public String getPassword() { return password; }
-    public void setPassword(String password) { this.password = password; }
+    public Role getRole() {
+        return role;
+    }
 
-    public boolean isEmailVerified() { return emailVerified; }
-    public void setEmailVerified(boolean emailVerified) { this.emailVerified = emailVerified; }
+    public void setRole(Role role) {
+        this.role = role;
+    }
 
-    public Role getRole() { return role; }
-    public void setRole(Role role) { this.role = role; }
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 }

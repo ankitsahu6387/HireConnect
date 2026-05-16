@@ -302,6 +302,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         try {
+            
             fallbackVerifier.run();
         } catch (Exception e) {
             throw new InvalidCredentialsException("Invalid or expired OTP");

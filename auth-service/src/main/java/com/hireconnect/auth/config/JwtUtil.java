@@ -3,34 +3,51 @@ package com.hireconnect.auth.config;
 import java.security.Key;
 import java.util.Date;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import io.jsonwebtoken.*;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.Jwts;
+import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 
 @Component
 public class JwtUtil {
 
-    private final String SECRET = "AnkitSahusecretkeyAnkitSahusecretkey123"; 
+    @Value("${jwt.secret:AnkitSahusecretkeyAnkitSahusecretkey123}")
+    private String secret;
 
-    private Key getSignKey() {
-        return Keys.hmacShaKeyFor(SECRET.getBytes());
-    }
+    @Value("${jwt.expiration-ms:86400000}")
+    private long expirationMs;
 
     public String generateToken(String email, String role) {
+        Date now = new Date();
         return Jwts.builder()
                 .setSubject(email)
                 .claim("role", role)
-                .setIssuedAt(new Date())
-                .setExpiration(new Date(System.currentTimeMillis() + 1000 * 60 * 60))
+                .setIssuedAt(now)
+                .setExpiration(new Date(now.getTime() + expirationMs))
                 .signWith(getSignKey(), SignatureAlgorithm.HS256)
                 .compact();
     }
 
-    public void validateToken(String token) {
-    	Jwts.parserBuilder()
-        .setSigningKey(Keys.hmacShaKeyFor(SECRET.getBytes()))
-        .build()
-        .parseClaimsJws(token);
+    public Claims extractAllClaims(String token) {
+        return Jwts.parserBuilder()
+                .setSigningKey(getSignKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+    }
+
+    public boolean validateToken(String token) {
+        Jwts.parserBuilder()
+                .setSigningKey(getSignKey())
+                .build()
+                .parseClaimsJws(token);
+        return true;
+    }
+
+    private Key getSignKey() {
+        return Keys.hmacShaKeyFor(secret.getBytes());
     }
 }

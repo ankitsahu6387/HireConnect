@@ -1,10 +1,9 @@
 package com.hireconnect.auth.client;
 
+import com.hireconnect.auth.dto.EmailOtpRequest;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import com.hireconnect.auth.dto.EmailOtpRequest;
 
 @FeignClient(name = "notification-service")
 public interface NotificationClient {

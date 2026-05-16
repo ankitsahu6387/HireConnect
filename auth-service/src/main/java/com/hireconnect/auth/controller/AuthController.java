@@ -1,23 +1,29 @@
 package com.hireconnect.auth.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.web.bind.annotation.*;
-
+import com.hireconnect.auth.config.JwtUtil;
 import com.hireconnect.auth.dto.AuthRequest;
 import com.hireconnect.auth.dto.AuthResponse;
 import com.hireconnect.auth.dto.EmailOtpRequest;
 import com.hireconnect.auth.service.AuthService;
-import com.hireconnect.auth.config.JwtUtil;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/auth")
 public class AuthController {
 
-    @Autowired
-    private AuthService service;
+    private final AuthService service;
+    private final JwtUtil jwtUtil;
 
-    @Autowired
-    private JwtUtil jwtUtil;
+    public AuthController(AuthService service, JwtUtil jwtUtil) {
+        this.service = service;
+        this.jwtUtil = jwtUtil;
+    }
 
     @PostMapping("/send-registration-otp")
     public String sendRegistrationOtp(@RequestBody EmailOtpRequest request) {
@@ -55,8 +61,17 @@ public class AuthController {
     }
 
     @GetMapping("/validate")
-    public String validate(@RequestParam String token) {
-        jwtUtil.validateToken(token);
+    public String validate(@RequestParam(required = false) String token,
+            @RequestHeader(value = "Authorization", required = false) String authorization) {
+        String resolvedToken = token;
+        if ((resolvedToken == null || resolvedToken.isBlank()) && authorization != null) {
+            resolvedToken = authorization.replaceFirst("(?i)^Bearer\\s+", "");
+        }
+        jwtUtil.validateToken(resolvedToken);
         return "Valid Token";
+    }
+
+    public String validate(String token) {
+        return validate(token, null);
     }
 }
