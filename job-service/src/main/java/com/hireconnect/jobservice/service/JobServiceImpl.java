@@ -20,11 +20,12 @@ public class JobServiceImpl implements JobService {
 
     private final JobRepository repository;
     private final JobViewRepository viewRepository;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
-    public JobServiceImpl(JobRepository repository, JobViewRepository viewRepository) {
+    public JobServiceImpl(JobRepository repository, JobViewRepository viewRepository, RestTemplate restTemplate) {
         this.repository = repository;
         this.viewRepository = viewRepository;
+        this.restTemplate = restTemplate;
     }
 
     @Override
@@ -136,7 +137,7 @@ public class JobServiceImpl implements JobService {
             payload.put("companyName", job.getCompanyName());
             payload.put("location", job.getLocation());
             payload.put("category", job.getCategory());
-            restTemplate.postForObject("http://localhost:8086/notify/new-job-alert", payload, Object.class);
+            restTemplate.postForObject("http://notification-service/notify/new-job-alert", payload, Object.class);
         } catch (Exception ignored) {
             // Notification delivery should not block job posting.
         }
@@ -151,7 +152,7 @@ public class JobServiceImpl implements JobService {
             payload.put("message", "Your job post \"" + emptyFallback(job.getTitle(), "Open role")
                     + "\" is now live on HireConnect.");
             payload.put("sendEmail", false);
-            restTemplate.postForObject("http://localhost:8086/notify/send", payload, Object.class);
+            restTemplate.postForObject("http://notification-service/notify/send", payload, Object.class);
         } catch (Exception ignored) {
             // Notification delivery should not block job posting.
         }
