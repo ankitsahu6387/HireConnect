@@ -256,7 +256,7 @@ public class NotificationService {
         }
 
         try {
-            Map<?, ?> user = restTemplate.getForObject("http://localhost:8082/users/" + request.getUserId(), Map.class);
+            Map<?, ?> user = restTemplate.getForObject("http://user-service/users/" + request.getUserId(), Map.class);
             if (user == null || user.get("email") == null) {
                 return null;
             }
@@ -283,7 +283,7 @@ public class NotificationService {
 
     private List<Map<String, Object>> getUsers() {
         try {
-            Map<String, Object>[] users = restTemplate.getForObject("http://localhost:8082/users", Map[].class);
+            Map<String, Object>[] users = restTemplate.getForObject("http://user-service/users", Map[].class);
             if (users == null) {
                 return List.of();
             }
@@ -338,7 +338,7 @@ public class NotificationService {
         }
 
         try {
-            Map<?, ?> response = restTemplate.getForObject("http://localhost:8087/subscription/" + userId, Map.class);
+            Map<?, ?> response = restTemplate.getForObject("http://subscription-service/subscription/" + userId, Map.class);
             Object data = response == null ? null : response.get("data");
             if (!(data instanceof Map<?, ?> subscription)) {
                 return false;
@@ -361,7 +361,7 @@ public class NotificationService {
         }
 
         try {
-            Map<?, ?> user = restTemplate.getForObject("http://localhost:8082/users/" + userId, Map.class);
+            Map<?, ?> user = restTemplate.getForObject("http://user-service/users/" + userId, Map.class);
             String role = user == null || user.get("role") == null ? "" : String.valueOf(user.get("role"));
             if ("CANDIDATE".equalsIgnoreCase(role) || "JOB_SEEKER".equalsIgnoreCase(role)) {
                 return hasActiveCandidateSubscription(userId);
@@ -381,7 +381,7 @@ public class NotificationService {
         }
 
         try {
-            Map<?, ?> user = restTemplate.getForObject("http://localhost:8082/users/" + userId, Map.class);
+            Map<?, ?> user = restTemplate.getForObject("http://user-service/users/" + userId, Map.class);
             String role = user == null || user.get("role") == null ? "" : String.valueOf(user.get("role"));
             return "EMPLOYER".equalsIgnoreCase(role);
         } catch (Exception ignored) {

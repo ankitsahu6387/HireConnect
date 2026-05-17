@@ -22,10 +22,11 @@ import com.hireconnect.interviewservice.repository.InterviewRepository;
 public class InterviewServiceImpl implements InterviewService {
 
     private final InterviewRepository repository;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
-    public InterviewServiceImpl(InterviewRepository repository) {
+    public InterviewServiceImpl(InterviewRepository repository, RestTemplate restTemplate) {
         this.repository = repository;
+        this.restTemplate = restTemplate;
     }
 
     @Override
@@ -130,7 +131,7 @@ public class InterviewServiceImpl implements InterviewService {
             payload.put("subject", subject);
             payload.put("message", message);
             payload.put("sendEmail", true);
-            restTemplate.postForObject("http://localhost:8086/notify/send", payload, Object.class);
+            restTemplate.postForObject("http://notification-service/notify/send", payload, Object.class);
         } catch (Exception ignored) {
             // Notification delivery should not block interview workflows.
         }
@@ -182,7 +183,7 @@ public class InterviewServiceImpl implements InterviewService {
         if (jobId == null) {
             return null;
         }
-        return restTemplate.getForObject("http://localhost:8083/jobs/" + jobId, Map.class);
+        return restTemplate.getForObject("http://job-service/jobs/" + jobId, Map.class);
     }
 
     private String buildInterviewScheduledMessage(Interview interview, Map<?, ?> job) {
@@ -209,7 +210,7 @@ public class InterviewServiceImpl implements InterviewService {
         }
 
         try {
-            Map<?, ?> user = restTemplate.getForObject("http://localhost:8082/users/" + userId, Map.class);
+            Map<?, ?> user = restTemplate.getForObject("http://user-service/users/" + userId, Map.class);
             String name = stringValue(user == null ? null : user.get("name"));
             String username = stringValue(user == null ? null : user.get("username"));
             String email = stringValue(user == null ? null : user.get("email"));
