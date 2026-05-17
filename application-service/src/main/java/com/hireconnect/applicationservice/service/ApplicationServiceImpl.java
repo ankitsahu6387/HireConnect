@@ -18,10 +18,11 @@ import com.hireconnect.applicationservice.repository.ApplicationRepository;
 public class ApplicationServiceImpl implements ApplicationService {
 
     private final ApplicationRepository repository;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
-    public ApplicationServiceImpl(ApplicationRepository repository) {
+    public ApplicationServiceImpl(ApplicationRepository repository, RestTemplate restTemplate) {
         this.repository = repository;
+        this.restTemplate = restTemplate;
     }
 
     @Override
@@ -88,7 +89,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             payload.put("subject", subject);
             payload.put("message", message);
             payload.put("sendEmail", shouldEmailStatus(app.getStatus()));
-            restTemplate.postForObject("http://localhost:8086/notify/send", payload, Object.class);
+            restTemplate.postForObject("http://notification-service/notify/send", payload, Object.class);
         } catch (Exception ignored) {
             // Notification delivery should not block application status changes.
         }
@@ -112,7 +113,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (jobId == null) {
             return null;
         }
-        return restTemplate.getForObject("http://localhost:8083/jobs/" + jobId, Map.class);
+        return restTemplate.getForObject("http://job-service/jobs/" + jobId, Map.class);
     }
 
     private String getJobLabel(Map<?, ?> job) {
@@ -142,7 +143,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
 
         try {
-            Map<?, ?> user = restTemplate.getForObject("http://localhost:8082/users/" + userId, Map.class);
+            Map<?, ?> user = restTemplate.getForObject("http://user-service/users/" + userId, Map.class);
             String name = stringValue(user == null ? null : user.get("name"));
             String email = stringValue(user == null ? null : user.get("email"));
 
