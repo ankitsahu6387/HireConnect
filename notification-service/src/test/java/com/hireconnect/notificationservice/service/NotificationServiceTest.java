@@ -18,17 +18,14 @@ import com.hireconnect.notificationservice.dto.NotificationRequest;
 import com.hireconnect.notificationservice.entity.NotificationLog;
 import com.hireconnect.notificationservice.exception.NotificationException;
 import com.hireconnect.notificationservice.repository.NotificationRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.web.client.RestTemplate;
 
 @ExtendWith(MockitoExtension.class)
@@ -43,17 +40,8 @@ class NotificationServiceTest {
     @Mock
     private RestTemplate restTemplate;
 
-    @Mock
-    private RabbitTemplate rabbitTemplate;
-
     @InjectMocks
     private NotificationService service;
-
-    @BeforeEach
-    void setUp() {
-        ReflectionTestUtils.setField(service, "notificationExchange", "notifications.exchange");
-        ReflectionTestUtils.setField(service, "notificationRoutingKey", "notifications.key");
-    }
 
     @Test
     void sendAndVerifyRegistrationOtpUsesGeneratedCode() {
@@ -111,17 +99,18 @@ class NotificationServiceTest {
     }
 
     @Test
-    void queueNotificationPublishesToRabbit() {
+    void queueNotificationSendsImmediately() {
         NotificationRequest request = request();
+        when(repository.save(any(NotificationLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        assertThat(service.queueNotification(request)).isEqualTo("Notification queued successfully");
-        verify(rabbitTemplate).convertAndSend("notifications.exchange", "notifications.key", request);
+        assertThat(service.queueNotification(request)).isEqualTo("Notification sent successfully");
+        verify(repository).save(any(NotificationLog.class));
     }
 
     @Test
     void getNotificationsUsesEmployerFilteredQueries() {
         NotificationLog log = new NotificationLog();
-        when(restTemplate.getForObject("http://localhost:8082/users/4", Map.class))
+        when(restTemplate.getForObject("http://user-service/users/4", Map.class))
                 .thenReturn(Map.of("role", "EMPLOYER"));
         when(repository.findByUserIdAndReadFalseAndTypeInOrderByCreatedAtDesc(eq(4L), any()))
                 .thenReturn(List.of(log));
@@ -158,11 +147,11 @@ class NotificationServiceTest {
                 "email", "employer@example.com",
                 "role", "EMPLOYER"
         );
-        when(restTemplate.getForObject("http://localhost:8082/users", Map[].class))
+        when(restTemplate.getForObject("http://user-service/users", Map[].class))
                 .thenReturn(new Map[] { candidate, employer });
-        when(restTemplate.getForObject("http://localhost:8087/subscription/1", Map.class))
+        when(restTemplate.getForObject("http://subscription-service/subscription/1", Map.class))
                 .thenReturn(Map.of("data", Map.of("status", "ACTIVE", "plan", "PROFESSIONAL")));
-        when(restTemplate.getForObject("http://localhost:8082/users/1", Map.class))
+        when(restTemplate.getForObject("http://user-service/users/1", Map.class))
                 .thenReturn(Map.of("role", "CANDIDATE"));
         when(repository.save(any(NotificationLog.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
