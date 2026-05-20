@@ -51,10 +51,22 @@ public class ApplicationController {
         return applicationRepository.countByJobId(id);
     }
 
+    @DeleteMapping("/job/{id}")
+    public ResponseEntity<Void> deleteByJob(@PathVariable Long id) {
+        service.deleteApplicationsByJob(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @PutMapping("/{id}/status")
     public Application updateStatus(@PathVariable Long id,
                                     @RequestBody StatusUpdateDTO dto) {
         return service.updateStatus(id, dto.getStatus());
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteApplication(@PathVariable Long id) {
+        service.deleteApplication(id);
+        return ResponseEntity.noContent().build();
     }
     
     @Autowired

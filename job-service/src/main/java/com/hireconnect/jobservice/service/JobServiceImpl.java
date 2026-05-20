@@ -109,6 +109,7 @@ public class JobServiceImpl implements JobService {
             throw new UnauthorizedActionException("You are not allowed to delete this job");
         }
 
+        deleteApplicationsForJob(id);
         repository.delete(job);
     }
 
@@ -154,6 +155,14 @@ public class JobServiceImpl implements JobService {
             restTemplate.postForObject("http://localhost:8086/notify/send", payload, Object.class);
         } catch (Exception ignored) {
             // Notification delivery should not block job posting.
+        }
+    }
+
+    private void deleteApplicationsForJob(Long jobId) {
+        try {
+            restTemplate.delete("http://localhost:8084/applications/job/" + jobId);
+        } catch (Exception ignored) {
+            // Candidate dashboard also hides applications for jobs that no longer exist.
         }
     }
 

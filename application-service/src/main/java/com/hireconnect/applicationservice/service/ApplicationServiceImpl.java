@@ -3,8 +3,10 @@ package com.hireconnect.applicationservice.service;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.ArrayList;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import com.hireconnect.applicationservice.dto.ApplicationDTO;
@@ -43,8 +45,20 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Override
+    @Transactional
     public List<Application> getApplicationsByUser(Long userId) {
-        return repository.findByUserId(userId);
+        List<Application> applications = repository.findByUserId(userId);
+        List<Application> activeApplications = new ArrayList<>();
+
+        for (Application application : applications) {
+            if (jobExists(application.getJobId())) {
+                activeApplications.add(application);
+            } else {
+                repository.delete(application);
+            }
+        }
+
+        return activeApplications;
     }
 
     @Override
@@ -74,6 +88,19 @@ public class ApplicationServiceImpl implements ApplicationService {
         Application saved = repository.save(app);
         notifyStatusChange(saved);
         return saved;
+    }
+
+    @Override
+    public void deleteApplication(Long id) {
+        Application app = repository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Application not found"));
+        repository.delete(app);
+    }
+
+    @Override
+    @Transactional
+    public void deleteApplicationsByJob(Long jobId) {
+        repository.deleteByJobId(jobId);
     }
 
     private void notifyStatusChange(Application app) {
@@ -113,6 +140,14 @@ public class ApplicationServiceImpl implements ApplicationService {
             return null;
         }
         return restTemplate.getForObject("http://localhost:8083/jobs/" + jobId, Map.class);
+    }
+
+    private boolean jobExists(Long jobId) {
+        try {
+            return getJob(jobId) != null;
+        } catch (Exception ignored) {
+            return false;
+        }
     }
 
     private String getJobLabel(Map<?, ?> job) {

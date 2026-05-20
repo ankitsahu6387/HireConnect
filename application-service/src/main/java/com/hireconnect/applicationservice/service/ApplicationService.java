@@ -14,4 +14,8 @@ public interface ApplicationService {
     List<Application> getApplicationsByJob(Long jobId);
 
     Application updateStatus(Long id, String status);
+
+    void deleteApplication(Long id);
+
+    void deleteApplicationsByJob(Long jobId);
 }
