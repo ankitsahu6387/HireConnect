@@ -1,7 +1,6 @@
 package com.hireconnect.applicationservice.controller;
 
 import java.util.List;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 
 import org.springframework.web.bind.annotation.*;
@@ -19,9 +18,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 public class ApplicationController {
 
     private final ApplicationService service;
+    private final ApplicationRepository applicationRepository;
 
-    public ApplicationController(ApplicationService service) {
+    public ApplicationController(ApplicationService service, ApplicationRepository applicationRepository) {
         this.service = service;
+        this.applicationRepository = applicationRepository;
     }
 
     @PostMapping
@@ -38,7 +39,7 @@ public class ApplicationController {
     public ResponseEntity<Application> getByUserAndJob(@PathVariable Long userId, @PathVariable Long jobId) {
         return applicationRepository.findByUserIdAndJobId(userId, jobId)
                 .map(ResponseEntity::ok)
-                .orElseGet(() -> ResponseEntity.notFound().build());
+                .orElseGet(() -> ResponseEntity.noContent().build());
     }
 
     @GetMapping("/job/{id}")
@@ -69,8 +70,6 @@ public class ApplicationController {
         return ResponseEntity.noContent().build();
     }
     
-    @Autowired
-    private ApplicationRepository applicationRepository;
     @GetMapping("/count")
     public Long getApplicationCount() {
         return applicationRepository.count();

@@ -98,12 +98,19 @@ class ApplicationServiceImplTest {
 
     @Test
     void readMethodsDelegateToRepository() {
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.bindTo(restTemplate).build();
+        ReflectionTestUtils.setField(service, "restTemplate", restTemplate);
         Application application = new Application(11L, 7L, "resume.pdf", "APPLIED");
         when(repository.findByUserId(7L)).thenReturn(List.of(application));
         when(repository.findByJobId(11L)).thenReturn(List.of(application));
+        server.expect(requestTo("http://localhost:8083/jobs/11"))
+                .andExpect(method(HttpMethod.GET))
+                .andRespond(withSuccess("{\"title\":\"Developer\"}", MediaType.APPLICATION_JSON));
 
         assertThat(service.getApplicationsByUser(7L)).containsExactly(application);
         assertThat(service.getApplicationsByJob(11L)).containsExactly(application);
+        server.verify();
     }
 
     @Test
